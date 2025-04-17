@@ -30,7 +30,7 @@ LogTest::~LogTest()
   // Auto-generated destructor stub
 }
 
-int LogTest::init(const string &logFile)
+int LogTest::init(const std::string &logFile)
 {
 
   LoggerFactory::init_default(logFile);
@@ -43,7 +43,7 @@ int LogTest::init(const string &logFile)
 void *LogTest::log_loop(void *param)
 {
   int index = *(int *)param;
-  int i     = 0;
+  int i = 0;
   while (i < 100) {
     i++;
     LOG_INFO("index:%d --> %d", index, i);
@@ -63,7 +63,10 @@ void checkRotate()
   test.log_loop(&index);
 }
 
-TEST(checkRotateTest, CheckRoateTest) { checkRotate(); }
+TEST(checkRotateTest, CheckRoateTest)
+{
+  checkRotate();
+}
 
 void testEnableTest()
 {
@@ -90,7 +93,10 @@ void testEnableTest()
   ASSERT_EQ(g_log->check_output(LOG_LEVEL_LAST, __FILE__), true);
 }
 
-TEST(testEnableTest, CheckEnableTest) { testEnableTest(); }
+TEST(testEnableTest, CheckEnableTest)
+{
+  testEnableTest();
+}
 
 int main(int argc, char **argv)
 {

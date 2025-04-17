@@ -9,36 +9,25 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 //
-// Created by Longda on 2021/4/16.
+// Created by Longda on 2021
 //
-#include <unistd.h>
 
-#include "gtest/gtest.h"
+#ifndef CTESTLOG_H_
+#define CTESTLOG_H_
 
-#include "common/io/io.h"
-#include "common/lang/string.h"
-#include "common/os/pidfile.h"
+#include <string>
 
-using namespace common;
+/*
+ *
+ */
+class LogTest {
+public:
+  LogTest();
+  virtual ~LogTest();
 
-int main()
-{
-  long long pid = (long long)getpid();
+  int init(const std::string &logFile = "test.log");
 
-  const char *programName = "test";
-  writePidFile(programName);
+  void *log_loop(void *param);
+};
 
-  string pidFile = getPidPath();
-
-  char  *p    = NULL;
-  size_t size = 0;
-  readFromFile(pidFile, p, size);
-
-  string    temp(p);
-  long long target = 0;
-  str_to_val(temp, target);
-
-  free(p);
-
-  EXPECT_EQ(pid, target);
-}
+#endif /* CTESTLOG_H_ */

@@ -9,22 +9,36 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 //
-// Created by Longda on 2021
+// Created by Longda on 2021/4/16.
 //
+#include <unistd.h>
 
-#ifndef CTESTMD5_H_
-#define CTESTMD5_H_
+#include "gtest/gtest.h"
 
-/*
- *
- */
-class Md5Test
+#include "common/os/pidfile.h"
+#include "common/io/io.h"
+#include "common/lang/string.h"
+
+using namespace common;
+
+int main()
 {
-public:
-  Md5Test();
-  virtual ~Md5Test();
+  long long pid = (long long)getpid();
 
-  void string();
-};
+  const char *programName = "test";
+  writePidFile(programName);
 
-#endif /* CTESTMD5_H_ */
+  std::string pidFile = getPidPath();
+
+  char *p = NULL;
+  size_t size = 0;
+  readFromFile(pidFile, p, size);
+
+  std::string temp(p);
+  long long target = 0;
+  str_to_val(temp, target);
+
+  free(p);
+
+  EXPECT_EQ(pid, target);
+}

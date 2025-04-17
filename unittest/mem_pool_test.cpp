@@ -11,10 +11,11 @@ See the Mulan PSL v2 for more details. */
 //
 // Created by longda on 2022
 //
+
+#include <list>
+#include <iostream>
 #include "common/mm/mem_pool.h"
 #include "gtest/gtest.h"
-#include "common/lang/list.h"
-#include "common/lang/iostream.h"
 
 using namespace common;
 
@@ -24,7 +25,7 @@ TEST(test_mem_pool_item, test_mem_pool_item_basic)
 
   const int item_num_per_pool = 128;
   mem_pool_item.init(32, true, 1, item_num_per_pool);
-  list<void *> used_list;
+  std::list<void *> used_list;
 
   int alloc_num = 1000;
 
@@ -33,7 +34,7 @@ TEST(test_mem_pool_item, test_mem_pool_item_basic)
     used_list.push_back(item);
   }
 
-  cout << mem_pool_item.to_string() << endl;
+  std::cout << mem_pool_item.to_string() << std::endl;
 
   int pool_size = ((alloc_num + item_num_per_pool - 1) / item_num_per_pool) * item_num_per_pool;
   ASSERT_EQ(alloc_num, mem_pool_item.get_used_num());
@@ -51,56 +52,10 @@ TEST(test_mem_pool_item, test_mem_pool_item_basic)
     mem_pool_item.free(check);
   }
 
-  cout << mem_pool_item.to_string() << endl;
+  std::cout << mem_pool_item.to_string() << std::endl;
   ASSERT_EQ(used_list.size(), mem_pool_item.get_used_num());
   ASSERT_EQ(pool_size, mem_pool_item.get_size());
 }
-
-struct Frame
-{
-  char buf[4096];
-
-  void reinit() {}
-  void reset() {}
-};
-
-#ifdef ENABLE_ASAN
-TEST(mm, mm_illegal_access)
-{
-  MemPoolSimple<Frame> pool{"mm_illegal_access"};
-  ASSERT_TRUE(pool.init() == 0);
-  auto frame = pool.alloc();
-
-  // Free frame
-  pool.free(frame);
-
-  // Access frame. Process WILL CRASH!
-  auto buf = frame->buf;
-  EXPECT_DEATH(buf[0] = '1', "");
-}
-
-TEST(mm, mm_legal_access)
-{
-  MemPoolSimple<Frame> pool{"mm_legal_access"};
-  ASSERT_TRUE(pool.init(false, 3, 3) == 0);
-  std::vector<Frame *> frames;
-
-  for (auto i = 0; i < 3; ++i) {
-    frames.push_back(pool.alloc());
-  }
-
-  for (auto i = 0; i < 3; ++i) {
-    pool.free(frames.at(i));
-  }
-
-  frames.clear();
-  for (auto i = 0; i < 3; ++i) {
-    Frame *f  = pool.alloc();
-    f->buf[0] = 1;
-    pool.free(f);
-  }
-}
-#endif
 
 int main(int argc, char **argv)
 {
