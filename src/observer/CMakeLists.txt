@@ -2,35 +2,25 @@ MESSAGE(STATUS "This is CMAKE_CURRENT_SOURCE_DIR dir " ${CMAKE_CURRENT_SOURCE_DI
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
-SET (PARSER_WORKDIR ${CMAKE_CURRENT_SOURCE_DIR}/sql/parser)
-SET (PARSER_SOURCES ${PARSER_WORKDIR}/lex_sql.cpp ${PARSER_WORKDIR}/yacc_sql.cpp)
-SET (PARSER_HEADERS ${PARSER_WORKDIR}/lex_sql.h ${PARSER_WORKDIR}/yacc_sql.hpp)
-ADD_CUSTOM_COMMAND(
-    OUTPUT ${PARSER_SOURCES} ${PARSER_HEADERS}
-    COMMAND bash gen_parser.sh
-    DEPENDS ${PARSER_WORKDIR}/lex_sql.l ${PARSER_WORKDIR}/yacc_sql.y
-    WORKING_DIRECTORY ${PARSER_WORKDIR}
-    COMMENT "generating lex and yacc files"
-)
-
 FILE(GLOB_RECURSE ALL_SRC *.cpp *.c)
-SET(MAIN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp)
+SET(MAIN_SRC main.cpp)
 MESSAGE("MAIN SRC: " ${MAIN_SRC})
-SET(LIB_SRC ${LIB_SRC} ${PARSER_SOURCES})
 FOREACH (F ${ALL_SRC})
 
     IF (NOT ${F} STREQUAL ${MAIN_SRC})
         SET(LIB_SRC ${LIB_SRC} ${F})
-        MESSAGE("Use " ${F})
     ENDIF()
+
+    MESSAGE("Use " ${F})
 
 ENDFOREACH (F)
 
 SET(LIBEVENT_STATIC_LINK TRUE)
 FIND_PACKAGE(Libevent CONFIG REQUIRED)
-FIND_PACKAGE(jsoncpp CONFIG REQUIRED)
 
-SET(LIBRARIES common pthread dl libevent::core libevent::pthreads JsonCpp::JsonCpp)
+# JsonCpp cannot work correctly with FIND_PACKAGE
+
+SET(LIBRARIES common pthread dl libevent::core libevent::pthreads libjsoncpp.a)
 
 # 指定目标文件位置
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
@@ -48,13 +38,13 @@ IF (HAVE_READLINE)
     TARGET_LINK_LIBRARIES(observer_static ${READLINE_LIBRARY})
     TARGET_INCLUDE_DIRECTORIES(observer_static PRIVATE ${READLINE_INCLUDE_DIR})
     ADD_DEFINITIONS(-DUSE_READLINE)
-    MESSAGE ("observer_static use readline ${READLINE_INCLUDE_DIR}")
+    MESSAGE ("observer_static use readline")
 ELSE ()
     MESSAGE ("readline is not found")
 ENDIF()
 
 SET_TARGET_PROPERTIES(observer_static PROPERTIES OUTPUT_NAME observer)
-TARGET_LINK_LIBRARIES(observer_static ${LIBRARIES} oblsm)
+TARGET_LINK_LIBRARIES(observer_static ${LIBRARIES})
 
 # Target 必须在定义 ADD_EXECUTABLE 之后， programs 不受这个限制
 # TARGETS和PROGRAMS 的默认权限是OWNER_EXECUTE, GROUP_EXECUTE, 和WORLD_EXECUTE，即755权限， programs 都是处理脚本类
