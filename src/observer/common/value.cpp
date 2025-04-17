@@ -19,6 +19,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/sstream.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
+#include "common/type/date_utils.h"
+#include "common/type/data_type.h"
 
 Value::Value(int val) { set_int(val); }
 
@@ -27,6 +29,8 @@ Value::Value(float val) { set_float(val); }
 Value::Value(bool val) { set_boolean(val); }
 
 Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
+
+Value::Value(int64_t date_val) { set_date(date_val); }
 
 Value::Value(const Value &other)
 {
@@ -37,7 +41,9 @@ Value::Value(const Value &other)
     case AttrType::CHARS: {
       set_string_from_other(other);
     } break;
-
+    case AttrType::DATES: {
+      this->value_.date_value_ = other.value_.date_value_;
+    } break;
     default: {
       this->value_ = other.value_;
     } break;
@@ -67,7 +73,9 @@ Value &Value::operator=(const Value &other)
     case AttrType::CHARS: {
       set_string_from_other(other);
     } break;
-
+    case AttrType::DATES: {
+      this->value_.date_value_ = other.value_.date_value_;
+    } break;
     default: {
       this->value_ = other.value_;
     } break;
@@ -116,6 +124,15 @@ void Value::set_data(char *data, int length)
     case AttrType::INTS: {
       value_.int_value_ = *(int *)data;
       length_           = length;
+    } break;
+    case AttrType::DATES: {
+      if (length == sizeof(int64_t)) {
+        value_.date_value_ = *(int64_t *)data;
+        length_ = length;
+      } else {
+        LOG_WARN("Invalid data length for DATES type: expected %ld, got %d", sizeof(int64_t), length);
+        reset();
+      }
     } break;
     case AttrType::FLOATS: {
       value_.float_value_ = *(float *)data;
@@ -175,6 +192,14 @@ void Value::set_string(const char *s, int len /*= 0*/)
   }
 }
 
+void Value::set_date(int64_t val)
+{
+  reset();
+  attr_type_ = AttrType::DATES;
+  value_.date_value_ = val;
+  length_ = sizeof(val);
+}
+
 void Value::set_value(const Value &value)
 {
   switch (value.attr_type_) {
@@ -189,6 +214,9 @@ void Value::set_value(const Value &value)
     } break;
     case AttrType::BOOLEANS: {
       set_boolean(value.get_boolean());
+    } break;
+    case AttrType::DATES: {
+      set_date(value.get_date());
     } break;
     default: {
       ASSERT(false, "got an invalid value type");
@@ -211,6 +239,9 @@ const char *Value::data() const
   switch (attr_type_) {
     case AttrType::CHARS: {
       return value_.pointer_value_;
+    } break;
+    case AttrType::DATES: {
+      return (const char *)&value_.date_value_;
     } break;
     default: {
       return (const char *)&value_;
@@ -249,14 +280,17 @@ int Value::get_int() const
       return (int)(value_.float_value_);
     }
     case AttrType::BOOLEANS: {
-      return (int)(value_.bool_value_);
+      return (int)value_.bool_value_;
     }
-    default: {
-      LOG_WARN("unknown data type. type=%d", attr_type_);
+    case AttrType::DATES: {
+      LOG_WARN("Implicit conversion from DATE to INT is not supported/defined, returning 0.");
       return 0;
     }
+    default: {
+      LOG_WARN("unsupported attr type for get_int: %d", attr_type_);
+      return 0;
+    } break;
   }
-  return 0;
 }
 
 float Value::get_float() const
@@ -326,4 +360,32 @@ bool Value::get_boolean() const
     }
   }
   return false;
+}
+
+int64_t Value::get_date() const
+{
+  switch (attr_type_) {
+    case AttrType::DATES: {
+      return value_.date_value_;
+    } break;
+    case AttrType::CHARS: {
+      int64_t days = 0;
+      if (value_.pointer_value_ != nullptr) {
+        RC rc = common::type::string_to_days(value_.pointer_value_, days);
+        if (OB_SUCCESS(rc)) {
+          return days;
+        } else {
+          LOG_WARN("Failed to convert string '%s' to date, returning 0.", value_.pointer_value_);
+          return 0;
+        }
+      } else {
+        LOG_WARN("Attempting to get date from null string, returning 0.");
+        return 0;
+      }
+    } break;
+    default: {
+      LOG_WARN("Conversion from type %s to DATE not implemented, returning 0.", attr_type_to_string(attr_type_));
+      return 0;
+    } break;
+  }
 }

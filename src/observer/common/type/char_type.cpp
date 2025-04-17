@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "common/type/char_type.h"
 #include "common/value.h"
+#include "common/type/date_utils.h"
 
 int CharType::compare(const Value &left, const Value &right) const
 {
@@ -26,12 +27,52 @@ RC CharType::set_value_from_str(Value &val, const string &data) const
   return RC::SUCCESS;
 }
 
-RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
+RC CharType::cast_to(const Value &val, AttrType to_type, Value &result) const
 {
-  switch (type) {
-    default: return RC::UNIMPLEMENTED;
+  ASSERT(val.attr_type() == AttrType::CHARS, "Invalid source type for CharType::cast_to");
+  const char* str_data = val.data();
+  if (str_data == nullptr) {
+      LOG_WARN("Cannot cast NULL CHARS to other types.");
+      return RC::INVALID_ARGUMENT;
   }
-  return RC::SUCCESS;
+
+  switch (to_type) {
+    case AttrType::CHARS:
+        result.set_string(str_data, val.length());
+        return RC::SUCCESS;
+    case AttrType::DATES: {
+        int64_t days;
+        RC rc = common::type::string_to_days(str_data, days);
+        if (OB_SUCCESS(rc)) {
+            result.set_date(days);
+            return RC::SUCCESS;
+        } else {
+            LOG_WARN("Failed to cast string '%s' to DATE.", str_data);
+            return rc == RC::INVALID_ARGUMENT ? RC::INVALID_ARGUMENT : RC::FAILURE;
+        }
+    }
+    case AttrType::INTS: {
+        try {
+            result.set_int(std::stoi(str_data));
+            return RC::SUCCESS;
+        } catch (const std::exception& e) {
+            LOG_WARN("Failed to cast string '%s' to INT: %s", str_data, e.what());
+            return RC::FAILURE;
+        }
+    }
+    case AttrType::FLOATS: {
+        try {
+            result.set_float(std::stof(str_data));
+            return RC::SUCCESS;
+        } catch (const std::exception& e) {
+            LOG_WARN("Failed to cast string '%s' to FLOAT: %s", str_data, e.what());
+            return RC::FAILURE;
+        }
+    }
+    default:
+     LOG_WARN("Unsupported cast from CHARS to %s", attr_type_to_string(to_type));
+     return RC::TYPE_MISMATCH;
+  }
 }
 
 int CharType::cast_cost(AttrType type)
